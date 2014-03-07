@@ -18,7 +18,7 @@ var mockDbFetchErr = function(cb) {
 };
 
 describe('Stash', function() {
-  var stash = new Stash();
+  var stash = Stash();
   var redis = stash.redis;
 
   describe('get', function() {
@@ -77,7 +77,7 @@ describe('Stash', function() {
   });
 
   describe('when db unavailable', function(done) {
-    var stash = new Stash();
+    var stash = Stash();
 
     before(function(done) {
       stash.redis.end();
@@ -96,7 +96,7 @@ describe('Stash', function() {
 
 
   describe('concurrency', function() {
-    var stash = new Stash();
+    var stash = Stash();
     var redis = stash.redis;
     var warlock = Warlock(redis);
 
@@ -109,7 +109,7 @@ describe('Stash', function() {
           cb();
           done();
         })
-      });
+      }, function() {});
     });
 
     it('many gets on uncached key result in only one db fetch', function(done) {
@@ -134,6 +134,42 @@ describe('Stash', function() {
         done();
       });
 
+    });
+  });
+
+  describe('broadcast', function() {
+    var stash = Stash();
+    var redis = stash.redis;
+
+    var stash2 = Stash();
+
+    before(function(done) {
+      // precache
+      stash.get('pizza', mockDbFetch, function(err, data){
+        should.not.exist(err);
+        should.exist(data);
+
+        data.test.should.equal(1);
+
+        // Make sure cache key is actually there
+        redis.get('pizza', function(err, data){
+          should.exist(data);
+
+          stash2.get('pizza', function(err, data) {
+            data.test.should.equal(1);
+
+            return done(err);
+          });
+        });
+      });
+    });
+
+    it('delete should invalidate local cache for all instances', function(done) {
+      stash.del('pizza', function(err){
+        should.not.exist(stash2.objectCache.get('pizza'));
+
+        return done(err);
+      });
     });
   });
 });
