@@ -1,0 +1,41 @@
+{
+  "name": "stash",
+  "version": "0.0.1",
+  "description": "Distributed cache using Redis and in-memory LRU",
+  "main": "lib/stash.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "debug": "~0.7.4",
+    "node-redis-warlock": "0.0.2",
+    "anchorman": "0.0.1",
+    "redis": "^0.10.1",
+    "extend": "^1.2.1"
+  },
+  "devDependencies": {
+    "should": "^3.1.3",
+    "mocha": "^1.17.1",
+    "async": "^0.2.10"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gosquared/stash"
+  },
+  "keywords": [
+    "distributed",
+    "cache",
+    "redis",
+    "lru",
+    "memory"
+  ],
+  "author": "Geoff Wagstaff",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gosquared/stash/issues"
+  },
+  "homepage": "https://github.com/gosquared/stash"
+}
