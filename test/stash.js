@@ -63,6 +63,29 @@ describe('Stash', function() {
     });
   });
 
+  describe('delete', function() {
+    before(function(done) {
+      stash.objectCache.lru.has('test').should.equal(true);
+      redis.exists('test', function(err, exists) {
+        exists.should.equal(1);
+
+        stash.del('test', done);
+      })
+    });
+
+    it('should remove from lru', function() {
+      stash.objectCache.lru.has('test').should.equal(false);
+    });
+
+    it('should remove from redis', function(done) {
+      redis.exists('test', function(err, exists) {
+        exists.should.equal(0);
+
+        done(err);
+      });
+    });
+  });
+
   describe('during cache issues', function(done) {
     var stash = Stash({
       wait: {
@@ -77,6 +100,13 @@ describe('Stash', function() {
 
     it('gives error when getting a key', function(done) {
       stash.get('blah', mockDbFetch, function(err, data){
+        err.should.equal('redis unavailable');
+        done();
+      });
+    });
+
+    it('gives error when deleting a key', function(done) {
+      stash.del('blah', function(err, data){
         err.should.equal('redis unavailable');
         done();
       });
@@ -232,13 +262,13 @@ describe('Stash', function() {
       });
     });
 
-    it('delete should invalidate local cache for all instances', function(done) {
+    it('should invalidate local cache for all instances', function(done) {
       stash2.broadcast.once('message', function(){
         stash2.objectCache.lru.has('pizza').should.equal(false);
 
         return done();
       });
-      stash.del('pizza');
+      stash.invalidate('pizza');
     });
   });
 });
