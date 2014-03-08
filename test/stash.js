@@ -17,6 +17,10 @@ var mockDbFetchErr = function(cb) {
   });
 };
 
+var mockDbFetchHang = function(cb) {
+   // basically never call cb :)
+};
+
 describe('Stash', function() {
   var stash = Stash();
   var redis = stash.redis;
@@ -59,38 +63,57 @@ describe('Stash', function() {
     });
   });
 
-  describe('when cache unavailable', function(done) {
+  describe('during cache issues', function(done) {
+    var stash = Stash({
+      wait: {
+        redis: false
+      }
+    });
+
     before(function(done) {
       stash.redis.end();
       done();
     });
 
-    it('bypasses cache when fetching', function(done) {
+    it('gives error when getting a key', function(done) {
       stash.get('blah', mockDbFetch, function(err, data){
-        should.not.exist(err);
-        should.exist(data);
-
-        data.test.should.equal(1);
+        err.should.equal('redis unavailable');
         done();
       });
     });
   });
 
-  describe('when db unavailable', function(done) {
+  describe('during db issues', function(done) {
     var stash = Stash();
+    var dbErr;
 
-    before(function(done) {
-      stash.redis.end();
-
+    it('db error is cached in lru', function(done) {
       stash.get('blah1', mockDbFetchErr, function(err, data){
         should.exist(err);
 
+        (stash.objectCache.errLru.has('blah1')).should.equal(true);
+
         done();
       });
-    })
+    });
 
-    it('caches error in lru', function() {
-      (!!stash.objectCache.errLru.peek('blah1')).should.equal(true);
+    it('if db hangs curtail query and cache error in lru', function(done) {
+      var stash = Stash({
+        timeout: {
+          dbFetch: 1
+        },
+        wait: {
+          redis: true
+        }
+      });
+
+      stash.get('fetchHang', mockDbFetchHang, function(err, data){
+        should.exist(err);
+
+        (stash.objectCache.errLru.has('fetchHang')).should.equal(true);
+
+        done();
+      });
     });
   });
 
@@ -112,7 +135,24 @@ describe('Stash', function() {
       }, function() {});
     });
 
-    it('many gets on uncached key result in only one db fetch', function(done) {
+    it('stops retrying if locked and retry limit reached', function(done) {
+
+      var stash2 = Stash({
+        retryLimit: 0,
+        timeout: {
+          retry: 1
+        }
+      });
+
+      stash.get('retryLimit', function(cb) { }, function(){});
+
+      stash2.get('retryLimit', function(cb){ }, function(err){
+        err.should.equal('retry limit reached');
+        done();
+      });
+    });
+
+    it('many gets on uncached key from a single instance result in only one db fetch', function(done) {
       var numGets = 100;
       var fetches = 0;
 
@@ -133,7 +173,34 @@ describe('Stash', function() {
         results.length.should.equal(numGets);
         done();
       });
+    });
 
+    it('gets from multiple separate instances should only fetch from db once', function(done) {
+      var instances = [];
+      var numInstances = 5;
+      var fetches = 0;
+
+      for (var i = 0; i < numInstances; i++) {
+        instances.push(Stash({
+          wait: {
+            redis: true
+          },
+          timeout: {
+            retry: 1
+          }
+        }));
+      }
+
+      async.map(instances, function(stash, done) {
+        stash.get('multiInstance', function(cb) {
+          fetches += 1;
+          fetches.should.equal(1);
+
+          return setImmediate(function() {
+            cb(null, { test: 2 });
+          });
+        }, done);
+      }, done);
     });
   });
 
@@ -157,6 +224,7 @@ describe('Stash', function() {
 
           stash2.get('pizza', function(err, data) {
             data.test.should.equal(1);
+            stash2.objectCache.lru.has('pizza').should.equal(true);
 
             return done(err);
           });
@@ -165,11 +233,12 @@ describe('Stash', function() {
     });
 
     it('delete should invalidate local cache for all instances', function(done) {
-      stash.del('pizza', function(err){
-        should.not.exist(stash2.objectCache.get('pizza'));
+      stash2.broadcast.once('message', function(){
+        stash2.objectCache.lru.has('pizza').should.equal(false);
 
-        return done(err);
+        return done();
       });
+      stash.del('pizza');
     });
   });
 });

@@ -1,4 +1,4 @@
 
 before(function(done){
-  this.redis.script('flush', done);
+  this.redis.flushall(done);
 });
