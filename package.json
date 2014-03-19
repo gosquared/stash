@@ -1,6 +1,6 @@
 {
   "name": "node-stash",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Distributed cache using Redis and in-memory LRU",
   "main": "lib/stash.js",
   "directories": {
