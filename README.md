@@ -5,7 +5,11 @@ Distributed cache using Redis and in-memory LRU.
 
 Requires Redis >= v2.6.0
 
-### Usage
+## Install
+
+    npm install node-stash
+
+## Usage
 
 ```javascript
 
