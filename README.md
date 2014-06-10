@@ -109,7 +109,7 @@ var opts = {
   wait: {
     redis: true // error if redis connection down
   },
-  cacheErrors: false, // Cache errors in memory & redis
+  cacheErrors: false, // Cache fetchFn errors in memory & redis.
   retryLimit: 5, // times to retry cache fetch if lock in place
   log: debug, // settable to your own logging function
   metrics: createMetrics() // settable to your own metrics library
