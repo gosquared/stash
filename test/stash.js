@@ -282,9 +282,24 @@ describe('Stash', function() {
     });
 
     it('should invalidate local cache for all instances', function(done) {
+      var numFetches = 0;
+
+      var fetch = function(cb) {
+        numFetches += 1;
+        setImmediate(cb);
+      };
+
       stash2.broadcast.once('message', function(){
-        return done();
+        var purgeTest = function() {
+          stash2.get('pizza', fetch, function() {
+            numFetches.should.equal(1);
+            return done();
+          });
+        };
+
+        setImmediate(purgeTest);
       });
+
       stash.invalidate('pizza');
     });
   });
