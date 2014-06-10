@@ -4,6 +4,8 @@ var redisConnection = require('./setup/redisConnection');
 var redisFlush = require('./setup/redisFlush');
 var Warlock = require('node-redis-warlock');
 var async = require('async');
+var Redis = require('redis');
+var createStash = Stash.createStash;
 
 var mockDbFetch = function(cb) {
   setImmediate(function() {
@@ -11,9 +13,10 @@ var mockDbFetch = function(cb) {
   });
 };
 
+var dbErrMsg = 'DB AINT COOL RIGHT NOW';
 var mockDbFetchErr = function(cb) {
   setImmediate(function() {
-    cb('DB AINT COOL RIGHT NOW');
+    cb(new Error(dbErrMsg));
   });
 };
 
@@ -21,9 +24,13 @@ var mockDbFetchHang = function(cb) {
    // basically never call cb :)
 };
 
+var createRedisClient = function() {
+  return Redis.createClient();
+};
+
 describe('Stash', function() {
-  var stash = Stash();
-  var redis = stash.redis;
+  var stash = createStash(createRedisClient);
+  var redis = stash.cacheRedis;
 
   describe('get', function() {
 
@@ -61,6 +68,14 @@ describe('Stash', function() {
         done();
       });
     });
+
+    it('no db fetch caches empty data', function(done) {
+      stash.get('noDBFetch', function(err, result) {
+        should.not.exist(err);
+        should.not.exist(result);
+        done();
+      });
+    });
   });
 
   describe('delete', function() {
@@ -79,17 +94,21 @@ describe('Stash', function() {
         done(err);
       });
     });
+
+    it('should clear', function() {
+      stash.clear();
+    });
   });
 
   describe('during cache issues', function(done) {
-    var stash = Stash({
+    var stash = createStash(createRedisClient, {
       wait: {
         redis: false
       }
     });
 
     before(function(done) {
-      stash.redis.end();
+      stash.cacheRedis.end();
       done();
     });
 
@@ -111,19 +130,28 @@ describe('Stash', function() {
   });
 
   describe('during db issues', function(done) {
-    var stash = Stash();
-    var dbErr;
+    var stash = createStash(createRedisClient, {
+      cacheErrors: true
+    });
 
     it('db error is cached', function(done) {
-      stash.get('blah1', mockDbFetchErr, function(err, data){
-        should.exist(err);
+      var dbFetches = 0;
+      var fetch = function(cb) {
+        (++dbFetches).should.equal(1);
+        return mockDbFetchErr(cb);
+      };
 
-        done();
+      stash.get('blah1', fetch, function() {
+        stash.get('blah1', fetch, function(err, data){
+          err.message.should.equal(dbErrMsg);
+
+          done();
+        });
       });
     });
 
     it('if db hangs curtail query and cache error', function(done) {
-      var stash = Stash({
+      var stash = createStash(createRedisClient, {
         timeout: {
           dbFetch: 1
         },
@@ -142,8 +170,8 @@ describe('Stash', function() {
 
 
   describe('concurrency', function() {
-    var stash = Stash();
-    var redis = stash.redis;
+    var stash = createStash(createRedisClient);
+    var redis = stash.cacheRedis;
     var warlock = Warlock(redis);
 
     it('sets lock when db fetching', function(done){
@@ -160,7 +188,7 @@ describe('Stash', function() {
 
     it('stops retrying if locked and retry limit reached', function(done) {
 
-      var stash2 = Stash({
+      var stash2 = createStash(createRedisClient, {
         retryLimit: 0,
         timeout: {
           retry: 1
@@ -204,7 +232,7 @@ describe('Stash', function() {
       var fetches = 0;
 
       for (var i = 0; i < numInstances; i++) {
-        instances.push(Stash({
+        instances.push(createStash(createRedisClient, {
           wait: {
             redis: true
           },
@@ -227,11 +255,11 @@ describe('Stash', function() {
     });
   });
 
-  describe.skip('broadcast', function() {
-    var stash = Stash();
-    var redis = stash.redis;
+  describe('broadcast', function() {
+    var stash = createStash(createRedisClient);
+    var redis = stash.cacheRedis;
 
-    var stash2 = Stash();
+    var stash2 = createStash(createRedisClient);
 
     before(function(done) {
       // precache
