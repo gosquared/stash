@@ -4,6 +4,8 @@ var redisConnection = require('./setup/redisConnection');
 var redisFlush = require('./setup/redisFlush');
 var Warlock = require('node-redis-warlock');
 var async = require('async');
+var Redis = require('redis');
+var createStash = Stash.createStash;
 
 var mockDbFetch = function(cb) {
   setImmediate(function() {
@@ -11,9 +13,10 @@ var mockDbFetch = function(cb) {
   });
 };
 
+var dbErrMsg = 'DB AINT COOL RIGHT NOW';
 var mockDbFetchErr = function(cb) {
   setImmediate(function() {
-    cb('DB AINT COOL RIGHT NOW');
+    cb(new Error(dbErrMsg));
   });
 };
 
@@ -21,9 +24,13 @@ var mockDbFetchHang = function(cb) {
    // basically never call cb :)
 };
 
+var createRedisClient = function() {
+  return Redis.createClient();
+};
+
 describe('Stash', function() {
-  var stash = Stash();
-  var redis = stash.redis;
+  var stash = createStash(createRedisClient);
+  var redis = stash.cacheRedis;
 
   describe('get', function() {
 
@@ -61,20 +68,23 @@ describe('Stash', function() {
         done();
       });
     });
+
+    it('no db fetch caches empty data', function(done) {
+      stash.get('noDBFetch', function(err, result) {
+        should.not.exist(err);
+        should.not.exist(result);
+        done();
+      });
+    });
   });
 
   describe('delete', function() {
     before(function(done) {
-      stash.objectCache.lru.has('test').should.equal(true);
       redis.exists('test', function(err, exists) {
         exists.should.equal(1);
 
         stash.del('test', done);
-      })
-    });
-
-    it('should remove from lru', function() {
-      stash.objectCache.lru.has('test').should.equal(false);
+      });
     });
 
     it('should remove from redis', function(done) {
@@ -84,51 +94,64 @@ describe('Stash', function() {
         done(err);
       });
     });
+
+    it('should clear', function() {
+      stash.clear();
+    });
   });
 
   describe('during cache issues', function(done) {
-    var stash = Stash({
+    var stash = createStash(createRedisClient, {
       wait: {
         redis: false
       }
     });
 
     before(function(done) {
-      stash.redis.end();
+      stash.cacheRedis.end();
       done();
     });
 
     it('gives error when getting a key', function(done) {
       stash.get('blah', mockDbFetch, function(err, data){
-        err.should.equal('redis unavailable');
+        should.exist(err);
+        err.message.should.equal('redis unavailable');
         done();
       });
     });
 
     it('gives error when deleting a key', function(done) {
       stash.del('blah', function(err, data){
-        err.should.equal('redis unavailable');
+        should.exist(err);
+        err.message.should.equal('redis unavailable');
         done();
       });
     });
   });
 
   describe('during db issues', function(done) {
-    var stash = Stash();
-    var dbErr;
+    var stash = createStash(createRedisClient, {
+      cacheErrors: true
+    });
 
-    it('db error is cached in lru', function(done) {
-      stash.get('blah1', mockDbFetchErr, function(err, data){
-        should.exist(err);
+    it('db error is cached', function(done) {
+      var dbFetches = 0;
+      var fetch = function(cb) {
+        (++dbFetches).should.equal(1);
+        return mockDbFetchErr(cb);
+      };
 
-        (stash.objectCache.errLru.has('blah1')).should.equal(true);
+      stash.get('blah1', fetch, function() {
+        stash.get('blah1', fetch, function(err, data){
+          err.message.should.equal(dbErrMsg);
 
-        done();
+          done();
+        });
       });
     });
 
-    it('if db hangs curtail query and cache error in lru', function(done) {
-      var stash = Stash({
+    it('if db hangs curtail query and cache error', function(done) {
+      var stash = createStash(createRedisClient, {
         timeout: {
           dbFetch: 1
         },
@@ -140,8 +163,6 @@ describe('Stash', function() {
       stash.get('fetchHang', mockDbFetchHang, function(err, data){
         should.exist(err);
 
-        (stash.objectCache.errLru.has('fetchHang')).should.equal(true);
-
         done();
       });
     });
@@ -149,8 +170,8 @@ describe('Stash', function() {
 
 
   describe('concurrency', function() {
-    var stash = Stash();
-    var redis = stash.redis;
+    var stash = createStash(createRedisClient);
+    var redis = stash.cacheRedis;
     var warlock = Warlock(redis);
 
     it('sets lock when db fetching', function(done){
@@ -161,13 +182,13 @@ describe('Stash', function() {
           (!!unlock).should.equal(false);
           cb();
           done();
-        })
+        });
       }, function() {});
     });
 
     it('stops retrying if locked and retry limit reached', function(done) {
 
-      var stash2 = Stash({
+      var stash2 = createStash(createRedisClient, {
         retryLimit: 0,
         timeout: {
           retry: 1
@@ -177,7 +198,7 @@ describe('Stash', function() {
       stash.get('retryLimit', function(cb) { }, function(){});
 
       stash2.get('retryLimit', function(cb){ }, function(err){
-        err.should.equal('retry limit reached');
+        err.message.should.equal('retry limit reached');
         done();
       });
     });
@@ -194,7 +215,7 @@ describe('Stash', function() {
           return setImmediate(function() {
             cb(null, { test: 2 });
           });
-        }, next)
+        }, next);
       };
 
       async.times(numGets, doGet, function(err, results) {
@@ -211,7 +232,7 @@ describe('Stash', function() {
       var fetches = 0;
 
       for (var i = 0; i < numInstances; i++) {
-        instances.push(Stash({
+        instances.push(createStash(createRedisClient, {
           wait: {
             redis: true
           },
@@ -235,10 +256,10 @@ describe('Stash', function() {
   });
 
   describe('broadcast', function() {
-    var stash = Stash();
-    var redis = stash.redis;
+    var stash = createStash(createRedisClient);
+    var redis = stash.cacheRedis;
 
-    var stash2 = Stash();
+    var stash2 = createStash(createRedisClient);
 
     before(function(done) {
       // precache
@@ -254,8 +275,6 @@ describe('Stash', function() {
 
           stash2.get('pizza', function(err, data) {
             data.test.should.equal(1);
-            stash2.objectCache.lru.has('pizza').should.equal(true);
-
             return done(err);
           });
         });
@@ -263,11 +282,24 @@ describe('Stash', function() {
     });
 
     it('should invalidate local cache for all instances', function(done) {
-      stash2.broadcast.once('message', function(){
-        stash2.objectCache.lru.has('pizza').should.equal(false);
+      var numFetches = 0;
 
-        return done();
+      var fetch = function(cb) {
+        numFetches += 1;
+        setImmediate(cb);
+      };
+
+      stash2.broadcast.once('message', function(){
+        var purgeTest = function() {
+          stash2.get('pizza', fetch, function() {
+            numFetches.should.equal(1);
+            return done();
+          });
+        };
+
+        setImmediate(purgeTest);
       });
+
       stash.invalidate('pizza');
     });
   });
