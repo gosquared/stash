@@ -153,7 +153,7 @@ describe('Stash', function() {
     it('if db hangs curtail query and cache error', function(done) {
       var stash = createStash(createRedisClient, {
         timeout: {
-          dbFetch: 1
+          get: 1
         },
         wait: {
           redis: true
