@@ -109,6 +109,7 @@ var opts = {
   wait: {
     redis: true // error if redis connection down
   },
+  max: 10000, // Max number of items to hold in memory. Purge by LRU.
   cacheErrors: false, // Cache fetchFn errors in memory & redis.
   retryLimit: 5, // times to retry cache fetch if lock in place
   log: debug, // settable to your own logging function
