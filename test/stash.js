@@ -145,9 +145,11 @@ describe('Stash', function() {
         return mockDbFetchErr(cb);
       };
 
-      stash.get('blah1', fetch, function() {
-        stash.get('blah1', fetch, function(err, data){
-          assert.equal(dbErrMsg, err.message);
+      stash.get('blah1', fetch, function(err1) {
+        stash.get('blah1', fetch, function(err2, data){
+          assert(!data);
+          assert.equal(dbErrMsg, err2.message);
+          assert.equal(err2, err1);
 
           done();
         });
