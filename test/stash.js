@@ -1,4 +1,4 @@
-var should = require('should');
+var assert = require('assert');
 var Stash = require('../lib/stash');
 var redisConnection = require('./setup/redisConnection');
 var redisFlush = require('./setup/redisFlush');
@@ -29,17 +29,32 @@ var createRedisClient = function() {
 };
 
 describe('Stash', function() {
-  var stash = createStash(createRedisClient);
+  var stash = createStash(createRedisClient, {
+    memoize: {
+      errors: {
+        max: 0
+      }
+    }
+  });
   var redis = stash.cacheRedis;
 
   describe('get', function() {
 
+    it('errors if no fetch function given', function(done) {
+      stash.get('test', null, function(err){
+        assert(err);
+        done();
+      });
+    });
+
+    it('no-ops if no cb given', function() {
+      stash.get('test');
+    });
+
     it('fetches uncached data', function(done) {
       stash.get('test', mockDbFetch, function(err, data){
-        should.not.exist(err);
-        should.exist(data);
-
-        data.test.should.equal(1);
+        assert(!err);
+        assert.equal(1, data.test);
         done();
       });
     });
@@ -47,11 +62,11 @@ describe('Stash', function() {
     it('saved to cache', function(done) {
 
       redis.get('test', function(err, data) {
-        should.not.exist(err);
-        should.exist(data);
+        assert(!err);
+        assert(data);
 
-        data = stash.decodeContent(data);
-        data.test.should.equal(1);
+        data = stash.decodeContent(data)[0];
+        assert.equal(1, data.test);
         done();
       });
     });
@@ -60,19 +75,10 @@ describe('Stash', function() {
       stash.get('test', function(){
           throw new Error('Fetcher should not be invoked');
         }, function(err, data){
+        assert(!err);
+        assert(data);
 
-        should.not.exist(err);
-        should.exist(data);
-
-        data.test.should.equal(1);
-        done();
-      });
-    });
-
-    it('no db fetch caches empty data', function(done) {
-      stash.get('noDBFetch', function(err, result) {
-        should.not.exist(err);
-        should.not.exist(result);
+        assert.equal(1, data.test);
         done();
       });
     });
@@ -81,7 +87,7 @@ describe('Stash', function() {
   describe('delete', function() {
     before(function(done) {
       redis.exists('test', function(err, exists) {
-        exists.should.equal(1);
+        assert(1, exists);
 
         stash.del('test', done);
       });
@@ -89,7 +95,7 @@ describe('Stash', function() {
 
     it('should remove from redis', function(done) {
       redis.exists('test', function(err, exists) {
-        exists.should.equal(0);
+        assert(true, exists);
 
         done(err);
       });
@@ -102,8 +108,8 @@ describe('Stash', function() {
 
   describe('during cache issues', function(done) {
     var stash = createStash(createRedisClient, {
-      wait: {
-        redis: false
+      redis: {
+        wait: false
       }
     });
 
@@ -114,36 +120,34 @@ describe('Stash', function() {
 
     it('gives error when getting a key', function(done) {
       stash.get('blah', mockDbFetch, function(err, data){
-        should.exist(err);
-        err.message.should.equal('redis unavailable');
+        assert(err);
+        assert.equal('redis unavailable', err.message);
         done();
       });
     });
 
     it('gives error when deleting a key', function(done) {
       stash.del('blah', function(err, data){
-        should.exist(err);
-        err.message.should.equal('redis unavailable');
+        assert(err);
+        assert.equal('redis unavailable', err.message);
         done();
       });
     });
   });
 
   describe('during db issues', function(done) {
-    var stash = createStash(createRedisClient, {
-      cacheErrors: true
-    });
+    var stash = createStash(createRedisClient);
 
     it('db error is cached', function(done) {
       var dbFetches = 0;
       var fetch = function(cb) {
-        (++dbFetches).should.equal(1);
+        assert.equal(1, (++dbFetches));
         return mockDbFetchErr(cb);
       };
 
       stash.get('blah1', fetch, function() {
         stash.get('blah1', fetch, function(err, data){
-          err.message.should.equal(dbErrMsg);
+          assert.equal(dbErrMsg, err.message);
 
           done();
         });
@@ -153,18 +157,22 @@ describe('Stash', function() {
     it('if db hangs curtail query and cache error', function(done) {
       var stash = createStash(createRedisClient, {
         timeout: {
-          get: 1
-        },
-        wait: {
-          redis: true
+          fetch: 1
         }
       });
 
-      stash.get('fetchHang', mockDbFetchHang, function(err, data){
-        should.exist(err);
+      var prev, i = 2;
+      // quick test to ensure the error was cached and given to both callbacks
+      var cb = function(err) {
+        assert(err);
+        prev = prev || err;
+        assert(prev === err);
+        prev = err;
+        if (!--i) return done();
+      };
 
-        done();
-      });
+      stash.get('fetchHang', mockDbFetchHang, cb);
+      stash.get('fetchHang', mockDbFetchHang, cb);
     });
   });
 
@@ -176,10 +184,10 @@ describe('Stash', function() {
 
     it('sets lock when db fetching', function(done){
       stash.get('sheep', function(cb){
-        warlock.lock('sheep', stash.conf.ttl.fetchLock, function(err, unlock){
-          should.not.exist(err);
+        warlock.lock('sheep', stash.conf.redis.ttl.lock, function(err, unlock){
+          assert(!err);
 
-          (!!unlock).should.equal(false);
+          assert.equal(false, !!unlock);
           cb();
           done();
         });
@@ -198,7 +206,7 @@ describe('Stash', function() {
       stash.get('retryLimit', function(cb) { }, function(){});
 
       stash2.get('retryLimit', function(cb){ }, function(err){
-        err.message.should.equal('retry limit reached');
+        assert.equal('retry limit reached', err.message);
         done();
       });
     });
@@ -209,8 +217,7 @@ describe('Stash', function() {
 
       var doGet = function(n, next) {
         stash.get('hotKey', function(cb) {
-          fetches += 1;
-          fetches.should.equal(1);
+          assert.equal(1, (++fetches));
 
           return setImmediate(function() {
             cb(null, { test: 2 });
@@ -219,9 +226,9 @@ describe('Stash', function() {
       };
 
       async.times(numGets, doGet, function(err, results) {
-        should.not.exist(err);
+        assert(!err);
 
-        results.length.should.equal(numGets);
+        assert.equal(numGets, results.length);
         done();
       });
     });
@@ -233,9 +240,6 @@ describe('Stash', function() {
 
       for (var i = 0; i < numInstances; i++) {
         instances.push(createStash(createRedisClient, {
-          wait: {
-            redis: true
-          },
           timeout: {
             retry: 1
           }
@@ -244,8 +248,7 @@ describe('Stash', function() {
 
       async.map(instances, function(stash, done) {
         stash.get('multiInstance', function(cb) {
-          fetches += 1;
-          fetches.should.equal(1);
+          assert.equal(1, (++fetches));
 
           return setImmediate(function() {
             cb(null, { test: 2 });
@@ -264,17 +267,18 @@ describe('Stash', function() {
     before(function(done) {
       // precache
       stash.get('pizza', mockDbFetch, function(err, data){
-        should.not.exist(err);
-        should.exist(data);
+        assert(!err);
+        assert(data);
 
-        data.test.should.equal(1);
+        assert.equal(1, data.test);
 
         // Make sure cache key is actually there
         redis.get('pizza', function(err, data){
-          should.exist(data);
+          assert(!err);
+          assert(data);
 
-          stash2.get('pizza', function(err, data) {
-            data.test.should.equal(1);
+          stash2.get('pizza', mockDbFetch, function(err, data) {
+            assert.equal(1, data.test);
             return done(err);
           });
         });
@@ -292,7 +296,7 @@ describe('Stash', function() {
       stash2.broadcast.once('message', function(){
         var purgeTest = function() {
           stash2.get('pizza', fetch, function() {
-            numFetches.should.equal(1);
+            assert.equal(1, numFetches);
             return done();
           });
         };
