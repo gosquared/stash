@@ -31,7 +31,7 @@ var createRedisClient = function() {
 describe('Stash', function() {
   var stash = createStash(createRedisClient, {
     memoize: {
-      errors: {
+      error: {
         max: 0
       }
     }

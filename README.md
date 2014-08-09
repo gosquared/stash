@@ -1,9 +1,9 @@
 stash
 =====
 
-Distributed cache using Redis and in-memory memoization.
+Distributed cache using Redis as cache store and memoization for fast access to loaded data.
 
-Requires Redis >= v2.6.0
+Requires Redis >= v2.6.0 and `node-redis` client `^0.8`
 
 ## Install
 
@@ -16,22 +16,29 @@ Requires Redis >= v2.6.0
 var Stash = require('node-stash');
 var Redis = require('redis');
 var stash = Stash.createStash(redis.createClient, {
-  ttl: {
-    memory: 5000,
-    cache: 30000
+  memoize: {
+    result: {
+      ttl: 600000
+    },
+    error: {
+      ttl: 5000
+    }
   }
 });
 
 var fetch = function(cb) {
   // Fetch data from somewhere
-  var data = { some: 'stuff' };
-  // If there was an error fetching stuff it'd go in the err argument
-  var err = null;
-
-  // Invoke cb to give stash an error and data.
-  // If error, stash will cache in lru for a short time
-  // Data is cached in redis and lru
-  return cb(err, data);
+  fetchData(function(err, data) {
+    // Invoke cb to give stash an error or data.
+    // If no error, stash will cache the results in memory
+    // and serve them to other .get requests on the same key
+    // until the key outlives its ttl or the cache is cleared
+    //
+    // If err is given, cache will only cache the error and
+    // serve to other .get requests in a similar fashion to
+    // cached results.
+    return cb(err, data);
+  });
 };
 
 stash.get('key', fetch, function(err, data) {
@@ -60,7 +67,7 @@ Retrieve a key. If the key has been previously retrieved, and time is within the
 
 Stash is designed to run in a distributed architecture. As such, you might have multiple instances of an app running stash, with many processes attempting to retrieve values from the database and cache. Stash has in-built concurrency control around your `fetchFn`, which ensures that only one instance of your app will be able to execute `fetchFn` at a time. This helps prevent stampeding your data source when keys expire from the cache.
 
-If the `fetchFn` invokes its callback with an error, you can control whether the error is cached or not. See the `cacheErrors` option.
+If the `fetchFn` invokes its callback with an error, you can control whether the error is cached or not, and how long for. See the `memoize.error` option.
 
 `fetchFn` signature: `function (cb) {}`
 
@@ -72,7 +79,7 @@ var fetch = function(cb) {
 };
 ```
 
-When multiple calls to `stash.get` are made before a key is retrieved and cached, stash will transparently queue callbacks until the single fetch & cache operation is completed, at which time the callback queue is invoked with the result. In this way, Stash abstracts concurrency complexity, so you only need to worry about a single function call to retrieve a value for your distributed app.
+When multiple calls to `stash.get` are made before a key is retrieved and cached, stash will transparently queue callbacks until the first single fetch & cache operation is completed, at which point the callbacks in the queue are invoked with the result. In this way, Stash abstracts concurrency complexity, so you only need to worry about a single function call to retrieve a value for your distributed app.
 
 ### stash.del(key, [cb])
 
@@ -93,30 +100,30 @@ Invalidate a key from the cache. This is similar to `stash.del`, but goes one st
 ```javascript
 
 var opts = {
-  // TTL = time to live = milliseconds before deletion
-  ttl: {
-    memory: 5000, // in-memory cache
-    cache: 600000, // redis cache
-    fetchLock: 10000 // fetchFn lock
+  redis: {
+    wait: true,           // when false, errors if redis connection is down, otherwise queues commands
+    ttl: {
+      cache: 600000,      // redis cache key ttl
+      lock: 10000         // in-case unlock does not work, ttl of redis-based fetchFn lock
+    }
   },
   timeout: {
-    fetch: 1000, // max redis key fetch duration
-    fetchLock: 1000, // max setting redis lock duration
-    dbFetch: 5000, // max fetchFn duration
-    retry: 1000, // retry delay
-    del: 1000 // max delete duration
+    retry: 1000,          // optimistic lock retry delay
+    del: 1000,            // time limit for deletes
+    fetch: 10000          // time limit for total cache & db fetch trip
   },
-  wait: {
-    redis: true // error if redis connection down
+  memoize: {              // in-memory cache options
+    result: {
+      ttl: 600000,        // ttl of results cache
+      max: 100000         // max number of items in results cache. Set to 0 to disable the result cache
+    },
+    error: {
+      ttl: 5000,          // ttl of errors cache
+      max: 100000         // max number of items in error cache. Set to 0 to disable the error cache.
+    }
   },
-  max: 10000, // Max number of items to hold in memory. Purge by LRU.
-  cacheErrors: false, // Cache fetchFn errors in memory & redis.
-  retryLimit: 5, // times to retry cache fetch if lock in place
-  log: debug, // settable to your own logging function
-  metrics: createMetrics() // settable to your own metrics library
+  retryLimit: 5,          // max retry times for optimistic locking
+  log: debug,             // set to your own logging function
+  metrics: createMetrics()// set to your own metrics function
 };
 ```
-
-### Logging
-
-Supply your own logging function:
