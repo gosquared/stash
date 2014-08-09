@@ -34,8 +34,8 @@ var fetch = function(cb) {
     // and serve them to other .get requests on the same key
     // until the key outlives its ttl or the cache is cleared
     //
-    // If err is given, cache will only cache the error and
-    // serve to other .get requests in a similar fashion to
+    // If err is given, stash will cache the error only (no results) and
+    // will serve it to other .get requests in a similar fashion to
     // cached results.
     return cb(err, data);
   });
