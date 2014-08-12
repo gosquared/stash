@@ -11,7 +11,7 @@
     "node-redis-warlock": "^0.0.7",
     "node-anchorman": "^0.2",
     "extend": "^1.2",
-    "memoizee": "^0.3"
+    "node-rush": "^0.1"
   },
   "devDependencies": {
     "mocha": "^1.17.1",

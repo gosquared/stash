@@ -1,7 +1,7 @@
 stash
 =====
 
-Distributed cache using Redis as cache store and memoization for fast access to loaded data.
+Distributed cache using Redis as cache store and memory lru for fast access to loaded data.
 
 Requires Redis >= v2.6.0 and `node-redis` client `^0.8`
 
@@ -16,34 +16,42 @@ Requires Redis >= v2.6.0 and `node-redis` client `^0.8`
 var Stash = require('node-stash');
 var Redis = require('redis');
 var stash = Stash.createStash(redis.createClient, {
-  memoize: {
-    result: {
-      ttl: 600000
-    },
-    error: {
-      ttl: 5000
-    }
+  lru: {
+    max: 100000,          // max number of cached results
+    maxAge: 600000,       // max age of cached results
+    errTTL: 5000,         // max age of cached error results
+    timeout: 5000         // min time before callback queue reset
   }
 });
 
-var fetch = function(cb) {
-  // Fetch data from somewhere
-  fetchData(function(err, data) {
-    // Invoke cb to give stash an error or data.
-    // If no error, stash will cache the results in memory
-    // and serve them to other .get requests on the same key
-    // until the key outlives its ttl or the cache is cleared
-    //
-    // If err is given, stash will cache the error only (no results) and
-    // will serve it to other .get requests in a similar fashion to
-    // cached results.
-    return cb(err, data);
-  });
+var fetchRow = function(id, cb) {
+  var fetch = function(done) {
+    /**
+     * This is our function to fetch data from a resource.
+     * The results of this function are cached by stash.
+     *
+     * It is wise to set a timeout on your fetch, so that
+     * it calls `done` with with an error if it takes too long
+     * to complete. This is useful in case your external
+     * resource is overloaded and being slow. If configured,
+     * stash will cache this error and prevent overloading the
+     * resource with more fetches.
+     */
+    // Example: querying a mysql db
+    mysql.query({
+      sql: 'SELECT thing FROM things WHERE id = ? LIMIT 1',
+      timeout: 5000
+    }, [id], done);
+  };
+
+  var key = 'appName:component:'+id;
+  stash.get(key, fetch, cb);
 };
 
-stash.get('key', fetch, function(err, data) {
-  // err is present if there was a problem somewhere along the line
-  // data could be fresh from db or from cache
+// get a row
+fetchRow(1, function(err, row) {
+  // called async with cached or
+  // freshly fetched data
 });
 
 ```
@@ -63,11 +71,11 @@ Do not simply return an existing redis client, as this will be placed into pub-s
 
 ### stash.get(key, fetchFn, cb)
 
-Retrieve a key. If the key has been previously retrieved, and time is within the memory TTL, it will be loaded from memory, resulting in extremely fast access. If not, it will attempt to load the key from Redis. If the key is not in Redis, it will invoke `fetchFn`, which is a function you define to retrieve the value. Stash caches the result of `fetchFn` in Redis.
+Retrieve a key. If the key has been previously retrieved, and not older than the LRU maxAge, it will be loaded from memory, resulting in extremely fast access. If not, it will attempt to load the key from Redis. If the key is not in Redis, it will invoke `fetchFn`, which is a function you define to retrieve the value. Stash caches the result of `fetchFn` in Redis.
 
 Stash is designed to run in a distributed architecture. As such, you might have multiple instances of an app running stash, with many processes attempting to retrieve values from the database and cache. Stash has in-built concurrency control around your `fetchFn`, which ensures that only one instance of your app will be able to execute `fetchFn` at a time. This helps prevent stampeding your data source when keys expire from the cache.
 
-If the `fetchFn` invokes its callback with an error, you can control whether the error is cached or not, and how long for. See the `memoize.error` option.
+If the `fetchFn` invokes its callback with an error, you can configure a different ttl for cached error resutls. See the `lru.errTTL` option.
 
 `fetchFn` signature: `function (cb) {}`
 
@@ -89,7 +97,7 @@ Note that the key is only deleted from the memory cache of the current process, 
 
 ### stash.clear()
 
-Empty the memory cache for all keys.
+Empty the memory cache for all keys. Does not touch Redis cache.
 
 ### stash.invalidate(key, [cb])
 
@@ -100,30 +108,24 @@ Invalidate a key from the cache. This is similar to `stash.del`, but goes one st
 ```javascript
 
 var opts = {
-  redis: {
-    wait: true,           // when false, errors if redis connection is down, otherwise queues commands
-    ttl: {
-      cache: 600000,      // redis cache key ttl
-      lock: 10000         // in-case unlock does not work, ttl of redis-based fetchFn lock
-    }
-  },
-  timeout: {
-    retry: 1000,          // optimistic lock retry delay
-    del: 1000,            // time limit for deletes
-    fetch: 10000          // time limit for total cache & db fetch trip
-  },
-  memoize: {              // in-memory cache options
-    result: {
-      ttl: 600000,        // ttl of results cache
-      max: 100000         // max number of items in results cache. Set to 0 to disable the result cache
+    redis: {
+      wait: true,           // when false, errors if redis connection is down, otherwise queues commands
+      ttl: {
+        cache: 600000,      // redis cache key ttl
+        lock: 10000         // in-case unlock does not work, ttl of redis-based fetchFn lock
+      }
     },
-    error: {
-      ttl: 5000,          // ttl of errors cache
-      max: 100000         // max number of items in error cache. Set to 0 to disable the error cache.
-    }
-  },
-  retryLimit: 5,          // max retry times for optimistic locking
-  log: debug,             // set to your own logging function
-  metrics: createMetrics()// set to your own metrics function
-};
+    timeout: {
+      retry: 1000           // optimistic lock retry delay
+    },
+    lru: {
+      max: 100000,          // max number of cached results
+      maxAge: 600000,       // max age of cached results
+      errTTL: 5000,         // max age of cached error results
+      timeout: 5000         // min time before callback queue reset
+    },
+    retryLimit: 5,          // max retry times for optimistic locking
+    log: debug,             // set to your own logging function
+    metrics: createMetrics()// set to your own metrics function
+  };
 ```

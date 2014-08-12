@@ -29,13 +29,7 @@ var createRedisClient = function() {
 };
 
 describe('Stash', function() {
-  var stash = createStash(createRedisClient, {
-    memoize: {
-      error: {
-        max: 0
-      }
-    }
-  });
+  var stash = createStash(createRedisClient);
   var redis = stash.cacheRedis;
 
   describe('get', function() {
@@ -154,27 +148,6 @@ describe('Stash', function() {
           done();
         });
       });
-    });
-
-    it('if db hangs curtail query and cache error', function(done) {
-      var stash = createStash(createRedisClient, {
-        timeout: {
-          fetch: 1
-        }
-      });
-
-      var prev, i = 2;
-      // quick test to ensure the error was cached and given to both callbacks
-      var cb = function(err) {
-        assert(err);
-        prev = prev || err;
-        assert(prev === err);
-        prev = err;
-        if (!--i) return done();
-      };
-
-      stash.get('fetchHang', mockDbFetchHang, cb);
-      stash.get('fetchHang', mockDbFetchHang, cb);
     });
   });
 
