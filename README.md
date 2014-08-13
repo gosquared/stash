@@ -31,7 +31,7 @@ var fetchRow = function(id, cb) {
      * The results of this function are cached by stash.
      *
      * It is wise to set a timeout on your fetch, so that
-     * it calls `done` with with an error if it takes too long
+     * it calls `done` with an error if it takes too long
      * to complete. This is useful in case your external
      * resource is overloaded and being slow. If configured,
      * stash will cache this error and prevent overloading the
@@ -75,7 +75,7 @@ Retrieve a key. If the key has been previously retrieved, and not older than the
 
 Stash is designed to run in a distributed architecture. As such, you might have multiple instances of an app running stash, with many processes attempting to retrieve values from the database and cache. Stash has in-built concurrency control around your `fetchFn`, which ensures that only one instance of your app will be able to execute `fetchFn` at a time. This helps prevent stampeding your data source when keys expire from the cache.
 
-If the `fetchFn` invokes its callback with an error, you can configure a different ttl for cached error resutls. See the `lru.errTTL` option.
+If the `fetchFn` invokes its callback with an error, you can configure a different ttl for cached error results. See the `lru.errTTL` option.
 
 `fetchFn` signature: `function (cb) {}`
 
