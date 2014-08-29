@@ -3,7 +3,7 @@ stash
 
 Distributed cache using Redis as cache store and memory lru for fast access to loaded data.
 
-Requires Redis >= v2.6.0 and `node-redis` client `^0.8`
+Requires Redis >= v2.6.12 and `node-redis` client `^0.8`
 
 ## Install
 
