@@ -113,6 +113,16 @@ var opts = {
       ttl: {
         cache: 600000,      // redis cache key ttl
         lock: 10000         // in-case unlock does not work, ttl of redis-based fetchFn lock
+      },
+      clients: {
+        // Clients passed here will be used instead of createRedisClient()
+        // This is useful if you want to share redis clients across
+        // many instances of stash. It is recommended to create clients
+        // solely for use with stash instances.
+        cache: null,
+        broadcast: null // This client is placed in pub/sub mode.
+        // It is recommended to call redis.setMaxListeners(0) on this client if
+        // you intend to share it across more than 10 instances of stash.
       }
     },
     timeout: {
