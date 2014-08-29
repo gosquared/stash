@@ -121,7 +121,7 @@ var opts = {
         // solely for use with stash instances.
         cache: null,
         broadcast: null // This client is placed in pub/sub mode.
-        // It is recommended to call redis.setMaxListeners(0) on this client if
+        // It is recommended to call client.setMaxListeners(0) on this client if
         // you intend to share it across more than 10 instances of stash.
       }
     },
