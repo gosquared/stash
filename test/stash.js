@@ -151,7 +151,6 @@ describe('Stash', function() {
     });
   });
 
-
   describe('concurrency', function() {
     var stash = createStash(createRedisClient);
     var redis = stash.cacheRedis;
