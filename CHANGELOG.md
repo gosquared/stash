@@ -1,6 +1,10 @@
 Changelog
 ---
 
+# v0.3.2
+
+* Upgrade [`node-redis-warlock`](https://www.npmjs.org/package/node-redis-warlock) to `^v0.1`.
+
 # v0.3.1
 
 * Replace multi with equivalent SET args.
