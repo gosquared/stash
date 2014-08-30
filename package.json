@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "debug": "^0.7.4",
-    "node-redis-warlock": "^0.0.7",
+    "node-redis-warlock": "^0.1",
     "node-anchorman": "^0.2",
     "extend": "^1.2",
     "node-rush": "^0.1"
