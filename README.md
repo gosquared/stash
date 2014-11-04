@@ -107,6 +107,14 @@ Invalidate a key from the cache. This is similar to `stash.del`, but goes one st
 
 ```javascript
 
+// example handlers
+var debug = console.log;
+var metrics = {
+  increment: function(name, inc) {
+    // name is the counter name, inc is the increment number
+  }
+};
+
 var opts = {
     redis: {
       wait: true,           // when false, errors if redis connection is down, otherwise queues commands
@@ -135,7 +143,7 @@ var opts = {
       timeout: 5000         // min time before callback queue reset
     },
     retryLimit: 5,          // max retry times for optimistic locking
-    log: debug,             // set to your own logging function
-    metrics: createMetrics()// set to your own metrics function
+    log: debug,             // set to your own logging handler
+    metrics: metrics        // set to your own metrics handler
   };
 ```
