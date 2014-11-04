@@ -116,34 +116,34 @@ var metrics = {
 };
 
 var opts = {
-    redis: {
-      wait: true,           // when false, errors if redis connection is down, otherwise queues commands
-      ttl: {
-        cache: 600000,      // redis cache key ttl
-        lock: 10000         // in-case unlock does not work, ttl of redis-based fetchFn lock
-      },
-      clients: {
-        // Clients passed here will be used instead of createRedisClient()
-        // This is useful if you want to share redis clients across
-        // many instances of stash. It is recommended to create clients
-        // solely for use with stash instances.
-        cache: null,
-        broadcast: null // This client is placed in pub/sub mode.
-        // It is recommended to call client.setMaxListeners(0) on this client if
-        // you intend to share it across more than 10 instances of stash.
-      }
+  redis: {
+    wait: true,           // when false, errors if redis connection is down, otherwise queues commands
+    ttl: {
+      cache: 600000,      // redis cache key ttl
+      lock: 10000         // in-case unlock does not work, ttl of redis-based fetchFn lock
     },
-    timeout: {
-      retry: 1000           // optimistic lock retry delay
-    },
-    lru: {
-      max: 100000,          // max number of cached results
-      maxAge: 600000,       // max age of cached results
-      errTTL: 5000,         // max age of cached error results
-      timeout: 5000         // min time before callback queue reset
-    },
-    retryLimit: 5,          // max retry times for optimistic locking
-    log: debug,             // set to your own logging handler
-    metrics: metrics        // set to your own metrics handler
-  };
+    clients: {
+      // Clients passed here will be used instead of createRedisClient()
+      // This is useful if you want to share redis clients across
+      // many instances of stash. It is recommended to create clients
+      // solely for use with stash instances.
+      cache: null,
+      broadcast: null // This client is placed in pub/sub mode.
+      // It is recommended to call client.setMaxListeners(0) on this client if
+      // you intend to share it across more than 10 instances of stash.
+    }
+  },
+  timeout: {
+    retry: 1000           // optimistic lock retry delay
+  },
+  lru: {
+    max: 100000,          // max number of cached results
+    maxAge: 600000,       // max age of cached results
+    errTTL: 5000,         // max age of cached error results
+    timeout: 5000         // min time before callback queue reset
+  },
+  retryLimit: 5,          // max retry times for optimistic locking
+  log: debug,             // set to your own logging handler
+  metrics: metrics        // set to your own metrics handler
+};
 ```
