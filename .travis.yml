@@ -5,3 +5,6 @@ node_js:
 - iojs
 services:
 - redis
+notifications:
+  slack:
+    secure: W6HtfyuA6+jmzeAfVBFLe1VFSF/vQZp8nyYQgM0rAG3beNU3gGzTq21dQc0flLFXarw3MFNkF//XP0hjQB4OMYrzVP7DeGLAycNDgpijEnPkct8LY9r+MrJ8HAw+wF/A05/cy/MZTK39ZrYFLlHPiX3w8h+EIFjuNr+6zUgRftM=
