@@ -1,5 +1,10 @@
-stash
-=====
+# stash
+
+[![Travis](https://api.travis-ci.org/gosquared/stash.svg)](https://travis-ci.org/gosquared/stash)
+[![Dependencies](https://david-dm.org/gosquared/stash.svg)](https://david-dm.org/gosquared/stash)
+[![Join the chat at https://gitter.im/gosquared/stash](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/gosquared/stash)
+
+[![NPM](https://nodei.co/npm/node-stash.png?downloads=true&downloadRank=true&stars=true)](https://www.npmjs.com/package/node-stash)
 
 Distributed cache using Redis as cache store and memory lru for fast access to loaded data.
 
