@@ -1,5 +1,7 @@
 # stash
 
+[![Join the chat at https://gitter.im/gosquared/stash](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/gosquared/stash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Travis](https://api.travis-ci.org/gosquared/stash.svg)](https://travis-ci.org/gosquared/stash)
 [![Dependencies](https://david-dm.org/gosquared/stash.svg)](https://david-dm.org/gosquared/stash)
 [![Join the chat at https://gitter.im/gosquared/stash](https://img.shields.io/badge/gitter-join%20chat-blue.svg)](https://gitter.im/gosquared/stash)
