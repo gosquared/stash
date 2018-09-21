@@ -1,6 +1,10 @@
 Changelog
 ---
 
+# v0.4.0
+
+* Upgrade deps.
+
 # v0.3.3
 
 * Remove leaky default metrics handler.
