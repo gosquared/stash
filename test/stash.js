@@ -1,7 +1,5 @@
 var assert = require('assert');
 var Stash = require('../lib/stash');
-var redisConnection = require('./setup/redisConnection');
-var redisFlush = require('./setup/redisFlush');
 var Warlock = require('node-redis-warlock');
 var async = require('async');
 var Redis = require('redis');
@@ -18,10 +16,6 @@ var mockDbFetchErr = function(cb) {
   setImmediate(function() {
     cb(new Error(dbErrMsg));
   });
-};
-
-var mockDbFetchHang = function(cb) {
-   // basically never call cb :)
 };
 
 var createRedisClient = function() {
