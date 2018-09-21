@@ -7,10 +7,10 @@
     "test": "test"
   },
   "dependencies": {
-    "debug": "^0.7",
-    "node-redis-warlock": "^0.1",
-    "node-anchorman": "^0.2",
+    "debug": "^4.0.1",
     "extend": "^1.2",
+    "node-anchorman": "^0.2.2",
+    "node-redis-warlock": "^0.1",
     "node-rush": "^0.1"
   },
   "devDependencies": {
