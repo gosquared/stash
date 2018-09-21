@@ -14,13 +14,12 @@
     "node-rush": "^0.1"
   },
   "devDependencies": {
-    "mocha": "^1.17",
     "async": "^0.2",
-    "istanbul": "^0.2",
+    "mocha": "^1.17",
     "redis": "^0.12"
   },
   "scripts": {
-    "test": "make test"
+    "test": "mocha test"
   },
   "repository": {
     "type": "git",
