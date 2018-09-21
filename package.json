@@ -14,9 +14,9 @@
     "node-rush": "^0.1"
   },
   "devDependencies": {
-    "async": "^0.2",
     "mocha": "^5.2.0",
-    "redis": "^0.12"
+    "neo-async": "^2.5.2",
+    "redis": "^2.8.0"
   },
   "scripts": {
     "test": "mocha --exit test"

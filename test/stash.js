@@ -1,7 +1,7 @@
 var assert = require('assert');
 var Stash = require('../lib/stash');
 var Warlock = require('node-redis-warlock');
-var async = require('async');
+var async = require('neo-async');
 var Redis = require('redis');
 var createStash = Stash.createStash;
 
