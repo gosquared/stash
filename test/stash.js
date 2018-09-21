@@ -145,6 +145,8 @@ describe('Stash', function() {
     });
   });
 
+  after(cb => stash.del('blah1', cb));
+
   describe('concurrency', function() {
     var stash = createStash(createRedisClient);
     var redis = stash.cacheRedis;
@@ -162,6 +164,8 @@ describe('Stash', function() {
       }, function() {});
     });
 
+    after(cb => stash.del('sheep', cb));
+
     it('stops retrying if locked and retry limit reached', function(done) {
 
       var stash2 = createStash(createRedisClient, {
@@ -178,6 +182,8 @@ describe('Stash', function() {
         done();
       });
     });
+
+    after(cb => stash.del('retryLimit', cb));
 
     it('many gets on uncached key from a single instance result in only one db fetch', function(done) {
       var numGets = 100;
@@ -200,6 +206,8 @@ describe('Stash', function() {
         done();
       });
     });
+
+    after(cb => stash.del('hotKey', cb));
 
     it('gets from multiple separate instances should only fetch from db once', function(done) {
       var instances = [];
@@ -225,6 +233,8 @@ describe('Stash', function() {
       }, done);
     });
   });
+
+  after(cb => stash.del('multiInstance', cb));
 
   describe('broadcast', function() {
     var stash = createStash(createRedisClient);
@@ -274,5 +284,8 @@ describe('Stash', function() {
 
       stash.invalidate('pizza');
     });
+
+    after(cb => stash.del('pizza', cb));
+
   });
 });
